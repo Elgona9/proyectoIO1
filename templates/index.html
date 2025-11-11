@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Optimización Lineal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 1.5em;
+            color: #667eea;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            font-family: monospace;
+            min-height: 100px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            margin-left: 10px;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-small {
+            padding: 8px 15px;
+            font-size: 0.9em;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .matrix-input {
+            margin-bottom: 20px;
+        }
+
+        .matrix-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .matrix-controls input {
+            width: 80px;
+        }
+
+        .matrix-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+
+        .matrix-table td {
+            padding: 5px;
+        }
+
+        .matrix-table input {
+            text-align: center;
+        }
+
+        .results {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .result-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-box h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .iteration {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+        }
+
+        .iteration-header {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .tableau {
+            overflow-x: auto;
+            margin-top: 10px;
+        }
+
+        .tableau table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+
+        .tableau th, .tableau td {
+            padding: 8px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+
+        .tableau th {
+            background: #667eea;
+            color: white;
+        }
+
+        .pivot-cell {
+            background: #ffeb3b !important;
+            font-weight: bold;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .examples-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .example-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .example-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .example-card h4 {
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+
+        .example-card p {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .container {
+                margin: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Sistema de Optimización Lineal</h1>
+            <p>Resuelve problemas de programación lineal con los métodos de Gran M y Dos Fases</p>
+        </div>
+
+        <div class="content">
+            <!-- Sección de Ejemplos -->
+            <div class="section">
+                <h2 class="section-title">📚 Ejemplos Predefinidos</h2>
+                <div id="examples-container" class="examples-grid">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Cargando ejemplos...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sección de Configuración -->
+            <div class="section">
+                <h2 class="section-title">⚙️ Configuración del Problema</h2>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="optimize">Tipo de Optimización:</label>
+                        <select id="optimize">
+                            <option value="max">Maximizar</option>
+                            <option value="min">Minimizar</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="method">Método de Solución:</label>
+                        <select id="method">
+                            <option value="bigm">Método de la Gran M</option>
+                            <option value="twophase">Método de las Dos Fases</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group" id="m-value-group">
+                    <label for="m-value">Valor de M (para método Gran M):</label>
+                    <input type="number" id="m-value" value="1000" step="100">
+                </div>
+            </div>
+
+            <!-- Sección de Función Objetivo -->
+            <div class="section">
+                <h2 class="section-title">📊 Función Objetivo</h2>
+                
+                <div class="matrix-controls">
+                    <label>Número de variables:</label>
+                    <input type="number" id="num-vars" value="2" min="1" max="10">
+                    <button class="btn btn-secondary btn-small" onclick="updateObjective()">Actualizar</button>
+                </div>
+
+                <div id="objective-inputs"></div>
+            </div>
+
+            <!-- Sección de Restricciones -->
+            <div class="section">
+                <h2 class="section-title">📝 Restricciones</h2>
+                
+                <div class="matrix-controls">
+                    <label>Número de restricciones:</label>
+                    <input type="number" id="num-constraints" value="2" min="1" max="10">
+                    <button class="btn btn-secondary btn-small" onclick="updateConstraints()">Actualizar</button>
+                </div>
+
+                <div id="constraints-inputs"></div>
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="solveProblem()">🚀 Resolver Problema</button>
+                <button class="btn btn-secondary" onclick="clearAll()">🔄 Limpiar Todo</button>
+            </div>
+
+            <!-- Sección de Resultados -->
+            <div id="results-section" style="display: none;">
+                <h2 class="section-title">📈 Resultados</h2>
+                <div id="results-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let examples = [];
+
+        // Cargar ejemplos al iniciar
+        window.onload = function() {
+            loadExamples();
+            updateObjective();
+            updateConstraints();
+            updateMethodOptions();
+        };
+
+        // Actualizar opciones según el método seleccionado
+        document.getElementById('method').addEventListener('change', updateMethodOptions);
+
+        function updateMethodOptions() {
+            const method = document.getElementById('method').value;
+            const mValueGroup = document.getElementById('m-value-group');
+            
+            if (method === 'bigm') {
+                mValueGroup.style.display = 'block';
+            } else {
+                mValueGroup.style.display = 'none';
+            }
+        }
+
+        async function loadExamples() {
+            try {
+                const response = await fetch('/examples');
+                examples = await response.json();
+                displayExamples();
+            } catch (error) {
+                document.getElementById('examples-container').innerHTML = 
+                    '<div class="alert alert-error">Error al cargar ejemplos</div>';
+            }
+        }
+
+        function displayExamples() {
+            const container = document.getElementById('examples-container');
+            container.innerHTML = '';
+
+            examples.forEach((example, index) => {
+                const card = document.createElement('div');
+                card.className = 'example-card';
+                card.onclick = () => loadExample(index);
+                card.innerHTML = `
+                    <h4>${example.name}</h4>
+                    <p>${example.description}</p>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function loadExample(index) {
+            const example = examples[index];
+            
+            // Configurar optimización
+            document.getElementById('optimize').value = example.optimize;
+            
+            // Configurar número de variables y restricciones
+            document.getElementById('num-vars').value = example.objective.length;
+            document.getElementById('num-constraints').value = example.rhs.length;
+            
+            // Actualizar campos
+            updateObjective();
+            updateConstraints();
+            
+            // Llenar función objetivo
+            example.objective.forEach((coef, i) => {
+                document.getElementById(`obj-${i}`).value = coef;
+            });
+            
+            // Llenar restricciones
+            example.constraints_matrix.forEach((row, i) => {
+                row.forEach((val, j) => {
+                    document.getElementById(`a-${i}-${j}`).value = val;
+                });
+                document.getElementById(`b-${i}`).value = example.rhs[i];
+                document.getElementById(`type-${i}`).value = example.constraint_types[i];
+            });
+
+            // Scroll suave a la configuración
+            document.querySelector('.section-title').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function updateObjective() {
+            const numVars = parseInt(document.getElementById('num-vars').value);
+            const container = document.getElementById('objective-inputs');
+            
+            let html = '<div class="form-group"><label>Coeficientes:</label><div style="display: flex; gap: 10px; flex-wrap: wrap;">';
+            
+            for (let i = 0; i < numVars; i++) {
+                html += `
+                    <div style="flex: 1; min-width: 80px;">
+                        <label style="font-size: 0.9em;">x<sub>${i + 1}</sub></label>
+                        <input type="number" id="obj-${i}" value="0" step="0.1">
+                    </div>
+                `;
+            }
+            
+            html += '</div></div>';
+            container.innerHTML = html;
+        }
+
+        function updateConstraints() {
+            const numVars = parseInt(document.getElementById('num-vars').value);
+            const numConstraints = parseInt(document.getElementById('num-constraints').value);
+            const container = document.getElementById('constraints-inputs');
+            
+            let html = '';
+            
+            for (let i = 0; i < numConstraints; i++) {
+                html += `
+                    <div class="result-box" style="margin-bottom: 15px;">
+                        <h4>Restricción ${i + 1}</h4>
+                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                `;
+                
+                for (let j = 0; j < numVars; j++) {
+                    html += `
+                        <input type="number" id="a-${i}-${j}" value="0" step="0.1" style="width: 80px;">
+                        <span>x<sub>${j + 1}</sub></span>
+                        ${j < numVars - 1 ? '<span>+</span>' : ''}
+                    `;
+                }
+                
+                html += `
+                        <select id="type-${i}" style="width: 80px;">
+                            <option value="<=">≤</option>
+                            <option value=">=">≥</option>
+                            <option value="=">=</option>
+                        </select>
+                        <input type="number" id="b-${i}" value="0" step="0.1" style="width: 80px;">
+                    </div>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+
+        function clearAll() {
+            document.getElementById('num-vars').value = 2;
+            document.getElementById('num-constraints').value = 2;
+            updateObjective();
+            updateConstraints();
+            document.getElementById('results-section').style.display = 'none';
+        }
+
+        async function solveProblem() {
+            // Recopilar datos
+            const numVars = parseInt(document.getElementById('num-vars').value);
+            const numConstraints = parseInt(document.getElementById('num-constraints').value);
+            
+            const objective = [];
+            for (let i = 0; i < numVars; i++) {
+                objective.push(parseFloat(document.getElementById(`obj-${i}`).value));
+            }
+            
+            const constraintsMatrix = [];
+            const rhs = [];
+            const constraintTypes = [];
+            
+            for (let i = 0; i < numConstraints; i++) {
+                const row = [];
+                for (let j = 0; j < numVars; j++) {
+                    row.push(parseFloat(document.getElementById(`a-${i}-${j}`).value));
+                }
+                constraintsMatrix.push(row);
+                rhs.push(parseFloat(document.getElementById(`b-${i}`).value));
+                constraintTypes.push(document.getElementById(`type-${i}`).value);
+            }
+            
+            const data = {
+                objective: objective,
+                constraints_matrix: constraintsMatrix,
+                rhs: rhs,
+                constraint_types: constraintTypes,
+                optimize: document.getElementById('optimize').value,
+                method: document.getElementById('method').value
+            };
+
+            if (data.method === 'bigm') {
+                data.M = parseFloat(document.getElementById('m-value').value);
+            }
+            
+            // Mostrar loading
+            const resultsSection = document.getElementById('results-section');
+            const resultsContent = document.getElementById('results-content');
+            resultsSection.style.display = 'block';
+            resultsContent.innerHTML = '<div class="loading"><div class="spinner"></div><p>Resolviendo problema...</p></div>';
+            
+            // Scroll a resultados
+            resultsSection.scrollIntoView({ behavior: 'smooth' });
+            
+            try {
+                const response = await fetch('/solve', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                displayResults(result);
+            } catch (error) {
+                resultsContent.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+            }
+        }
+
+        function displayResults(result) {
+            const container = document.getElementById('results-content');
+            let html = '';
+            
+            if (result.status === 'optimal') {
+                html += '<div class="alert alert-success">✅ Solución óptima encontrada</div>';
+                
+                html += '<div class="result-box">';
+                html += '<h3>Solución Óptima</h3>';
+                html += '<p><strong>Valor óptimo de la función objetivo:</strong> ' + result.optimal_value.toFixed(4) + '</p>';
+                html += '<p><strong>Variables de decisión:</strong></p>';
+                html += '<ul>';
+                result.solution.forEach((val, i) => {
+                    html += `<li>x<sub>${i + 1}</sub> = ${val.toFixed(4)}</li>`;
+                });
+                html += '</ul>';
+                html += '</div>';
+                
+            } else if (result.status === 'infeasible') {
+                html += '<div class="alert alert-warning">⚠️ El problema no tiene solución factible</div>';
+                html += `<p>${result.message}</p>`;
+            } else if (result.status === 'unbounded') {
+                html += '<div class="alert alert-warning">⚠️ El problema no está acotado</div>';
+                html += `<p>${result.message}</p>`;
+            } else {
+                html += '<div class="alert alert-error">❌ Error al resolver el problema</div>';
+                html += `<p>${result.message}</p>`;
+            }
+            
+            // Mostrar iteraciones
+            if (result.iterations && result.iterations.length > 0) {
+                html += '<div class="result-box">';
+                html += '<h3>Iteraciones del Algoritmo</h3>';
+                
+                result.iterations.forEach((iter, idx) => {
+                    html += '<div class="iteration">';
+                    
+                    let phaseText = iter.phase ? ` - Fase ${iter.phase}` : '';
+                    html += `<div class="iteration-header">Iteración ${iter.iteration}${phaseText}</div>`;
+                    html += `<p>${iter.description}</p>`;
+                    
+                    if (iter.tableau) {
+                        html += '<div class="tableau">';
+                        html += '<table>';
+                        html += '<thead><tr><th>Base</th>';
+                        
+                        for (let j = 0; j < iter.tableau[0].length - 1; j++) {
+                            html += `<th>x<sub>${j + 1}</sub></th>`;
+                        }
+                        html += '<th>RHS</th></tr></thead>';
+                        html += '<tbody>';
+                        
+                        iter.tableau.forEach((row, i) => {
+                            html += '<tr>';
+                            html += `<td>R${i + 1}</td>`;
+                            row.forEach((val, j) => {
+                                let cellClass = '';
+                                if (iter.pivot_row === i && iter.pivot_col === j) {
+                                    cellClass = 'pivot-cell';
+                                }
+                                html += `<td class="${cellClass}">${val.toFixed(4)}</td>`;
+                            });
+                            html += '</tr>';
+                        });
+                        
+                        html += '</tbody></table>';
+                        html += '</div>';
+                    }
+                    
+                    html += '</div>';
+                });
+                
+                html += '</div>';
+            }
+            
+            container.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

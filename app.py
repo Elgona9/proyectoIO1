@@ -74,9 +74,12 @@ def solve():
         return jsonify(result)
     
     except Exception as e:
+        # Log the error for debugging but don't expose stack traces
+        import logging
+        logging.error(f'Error solving optimization problem: {str(e)}')
         return jsonify({
             'status': 'error',
-            'message': f'Error al resolver el problema: {str(e)}'
+            'message': 'Error al resolver el problema. Por favor, verifica los datos ingresados.'
         }), 500
 
 
@@ -142,4 +145,7 @@ def examples():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    import os
+    # Only enable debug mode in development environment
+    debug_mode = os.environ.get('FLASK_ENV') == 'development'
+    app.run(debug=debug_mode, host='0.0.0.0', port=5000)

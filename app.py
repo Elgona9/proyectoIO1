@@ -54,16 +54,22 @@ def solve():
         formatted_iterations = []
         for iter_data in result.get('iterations', []):
             formatted_iter = {
-                'iteration': iter_data.get('iteration', 0),
-                'phase': iter_data.get('phase', None),
-                'description': iter_data.get('description', ''),
+                'iteration': int(iter_data.get('iteration', 0)),
+                'phase': int(iter_data.get('phase')) if iter_data.get('phase') is not None else None,
+                'description': str(iter_data.get('description', '')),
                 'tableau': iter_data['tableau'].tolist() if 'tableau' in iter_data else None,
-                'pivot_row': iter_data.get('pivot_row', None),
-                'pivot_col': iter_data.get('pivot_col', None)
+                'pivot_row': int(iter_data.get('pivot_row')) if iter_data.get('pivot_row') is not None else None,
+                'pivot_col': int(iter_data.get('pivot_col')) if iter_data.get('pivot_col') is not None else None
             }
             formatted_iterations.append(formatted_iter)
         
         result['iterations'] = formatted_iterations
+        
+        # Ensure all numeric values are Python types, not numpy types
+        if 'optimal_value' in result:
+            result['optimal_value'] = float(result['optimal_value'])
+        if 'solution' in result and result['solution']:
+            result['solution'] = [float(x) for x in result['solution']]
         
         return jsonify(result)
     

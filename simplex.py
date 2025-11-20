@@ -164,11 +164,23 @@ class SimplexSolver:
         if var_names is None:
             orig = len(self.c_original)
             names = []
-            for i in range(n_vars):
-                if i < orig:
-                    names.append(f"x{i+1}")
-                else:
-                    names.append(f"s{i - orig + 1}")
+            
+            # Contar variables de holgura teóricas
+            n_slack = sum(1 for c in self.constraints if c in ['<=', '>='])
+            
+            # Nombres de variables originales
+            for i in range(min(orig, n_vars)):
+                names.append(f"x{i+1}")
+            
+            # Nombres de variables de holgura (solo las que caben en n_vars)
+            slack_count = min(n_slack, max(0, n_vars - orig))
+            for i in range(slack_count):
+                names.append(f"s{i+1}")
+            
+            # Si quedan más columnas, son variables artificiales
+            remaining = n_vars - len(names)
+            for i in range(remaining):
+                names.append(f"a{i+1}")
         else:
             names = var_names[:n_vars]
             if len(names) < n_vars:
@@ -328,11 +340,23 @@ class SimplexSolver:
         if var_names is None:
             orig = len(self.c_original)
             names = []
-            for i in range(n_vars):
-                if i < orig:
-                    names.append(f"X<sub>{i+1}</sub>")
-                else:
-                    names.append(f"S<sub>{i - orig + 1}</sub>")
+            
+            # Contar variables de holgura teóricas
+            n_slack = sum(1 for c in self.constraints if c in ['<=', '>='])
+            
+            # Nombres de variables originales
+            for i in range(min(orig, n_vars)):
+                names.append(f"X<sub>{i+1}</sub>")
+            
+            # Nombres de variables de holgura (solo las que caben en n_vars)
+            slack_count = min(n_slack, max(0, n_vars - orig))
+            for i in range(slack_count):
+                names.append(f"S<sub>{i+1}</sub>")
+            
+            # Si quedan más columnas, son variables artificiales
+            remaining = n_vars - len(names)
+            for i in range(remaining):
+                names.append(f"A<sub>{i+1}</sub>")
         else:
             names = var_names[:n_vars]
 
@@ -459,12 +483,21 @@ class BigMMethod(SimplexSolver):
         # Construir la tabla inicial con variables de holgura y artificiales
         tableau, artificial_vars = self._build_initial_tableau(M)
         
-        # Guardar iteración inicial
-        self.iterations.append({
+        # Calcular el primer pivote para la iteración inicial
+        first_pivot_col = self._find_pivot_column(tableau) if not self._is_optimal(tableau) else None
+        first_pivot_row = self._find_pivot_row(tableau, first_pivot_col) if first_pivot_col is not None else None
+        
+        # Guardar iteración inicial con información del primer pivote
+        initial_iter = {
             'iteration': 0,
             'tableau': tableau.copy(),
             'description': 'Tabla inicial con Método de Gran M'
-        })
+        }
+        if first_pivot_col is not None and first_pivot_row is not None:
+            initial_iter['pivot_row'] = first_pivot_row
+            initial_iter['pivot_col'] = first_pivot_col
+            initial_iter['entering_row'] = first_pivot_row
+        self.iterations.append(initial_iter)
         
         # Aplicar el método simplex
         iteration = 1
@@ -492,9 +525,7 @@ class BigMMethod(SimplexSolver):
                     'iterations': self.iterations
                 }
             
-            # Realizar pivote
-            tableau = self._pivot(tableau, pivot_row, pivot_col)
-            
+            # Guardar la tabla con la información del pivote ANTES de pivotar
             self.iterations.append({
                 'iteration': iteration,
                 'tableau': tableau.copy(),
@@ -503,6 +534,9 @@ class BigMMethod(SimplexSolver):
                 'entering_row': pivot_row,  # La fila que entra es la fila del pivote
                 'description': f'Pivote en fila {pivot_row + 1}, columna {pivot_col + 1}'
             })
+            
+            # Realizar pivote
+            tableau = self._pivot(tableau, pivot_row, pivot_col)
             
             iteration += 1
         
@@ -513,6 +547,13 @@ class BigMMethod(SimplexSolver):
                 'message': 'Se alcanzó el número máximo de iteraciones',
                 'iterations': self.iterations
             }
+        
+        # Guardar tabla final óptima (sin pivote)
+        self.iterations.append({
+            'iteration': iteration,
+            'tableau': tableau.copy(),
+            'description': 'Solución óptima encontrada'
+        })
         
         # Verificar si hay variables artificiales en la base
         for art_var in artificial_vars:
@@ -647,12 +688,22 @@ class TwoPhaseMethod(SimplexSolver):
         # Construir tabla para fase 1
         tableau, artificial_vars, n_slack = self._build_phase1_tableau()
         
-        self.iterations.append({
+        # Calcular el primer pivote para la iteración inicial de fase 1
+        first_pivot_col = self._find_pivot_column_phase1(tableau) if not self._is_optimal_phase1(tableau) else None
+        first_pivot_row = self._find_pivot_row(tableau, first_pivot_col) if first_pivot_col is not None else None
+        
+        # Guardar iteración inicial con información del primer pivote
+        initial_iter = {
             'iteration': 0,
             'phase': 1,
             'tableau': tableau.copy(),
             'description': 'Fase 1: Tabla inicial para encontrar solución básica factible'
-        })
+        }
+        if first_pivot_col is not None and first_pivot_row is not None:
+            initial_iter['pivot_row'] = first_pivot_row
+            initial_iter['pivot_col'] = first_pivot_col
+            initial_iter['entering_row'] = first_pivot_row
+        self.iterations.append(initial_iter)
         
         # Resolver fase 1 (minimizar suma de artificiales)
         iteration = 1
@@ -673,9 +724,7 @@ class TwoPhaseMethod(SimplexSolver):
                     'iterations': self.iterations
                 }
             
-            # Realizar pivote
-            tableau = self._pivot(tableau, pivot_row, pivot_col)
-            
+            # Guardar la tabla con la información del pivote ANTES de pivotar
             self.iterations.append({
                 'iteration': iteration,
                 'phase': 1,
@@ -685,6 +734,9 @@ class TwoPhaseMethod(SimplexSolver):
                 'entering_row': pivot_row,
                 'description': f'Fase 1 - Pivote en fila {pivot_row + 1}, columna {pivot_col + 1}'
             })
+            
+            # Realizar pivote
+            tableau = self._pivot(tableau, pivot_row, pivot_col)
             
             iteration += 1
         
@@ -719,12 +771,22 @@ class TwoPhaseMethod(SimplexSolver):
         # Eliminar columnas de variables artificiales
         tableau = self._build_phase2_tableau(phase1_result)
         
-        self.iterations.append({
+        # Calcular el primer pivote para la iteración inicial de fase 2
+        first_pivot_col = self._find_pivot_column(tableau) if not self._is_optimal(tableau) else None
+        first_pivot_row = self._find_pivot_row(tableau, first_pivot_col) if first_pivot_col is not None else None
+        
+        # Guardar iteración inicial con información del primer pivote
+        initial_iter = {
             'iteration': 0,
             'phase': 2,
             'tableau': tableau.copy(),
             'description': 'Fase 2: Tabla inicial para optimizar función objetivo'
-        })
+        }
+        if first_pivot_col is not None and first_pivot_row is not None:
+            initial_iter['pivot_row'] = first_pivot_row
+            initial_iter['pivot_col'] = first_pivot_col
+            initial_iter['entering_row'] = first_pivot_row
+        self.iterations.append(initial_iter)
         
         # Resolver fase 2
         iteration = 1
@@ -745,9 +807,7 @@ class TwoPhaseMethod(SimplexSolver):
                     'iterations': self.iterations
                 }
             
-            # Realizar pivote
-            tableau = self._pivot(tableau, pivot_row, pivot_col)
-            
+            # Guardar la tabla con la información del pivote ANTES de pivotar
             self.iterations.append({
                 'iteration': iteration,
                 'phase': 2,
@@ -758,6 +818,9 @@ class TwoPhaseMethod(SimplexSolver):
                 'description': f'Fase 2 - Pivote en fila {pivot_row + 1}, columna {pivot_col + 1}'
             })
             
+            # Realizar pivote
+            tableau = self._pivot(tableau, pivot_row, pivot_col)
+            
             iteration += 1
         
         if iteration >= max_iterations:
@@ -766,6 +829,14 @@ class TwoPhaseMethod(SimplexSolver):
                 'message': 'Se alcanzó el número máximo de iteraciones',
                 'iterations': self.iterations
             }
+        
+        # Guardar tabla final óptima (sin pivote)
+        self.iterations.append({
+            'iteration': iteration,
+            'phase': 2,
+            'tableau': tableau.copy(),
+            'description': 'Solución óptima encontrada'
+        })
         
         # Extraer solución
         self.solution, self.optimal_value = self._extract_solution(tableau, n_vars)

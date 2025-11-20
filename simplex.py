@@ -292,7 +292,9 @@ class SimplexSolver:
         return "\n".join(lines)
     
     def format_tableau_html(self, tableau: np.ndarray, cj: Optional[List[float]] = None,
-                           var_names: Optional[List[str]] = None, precision: int = 4) -> str:
+                           var_names: Optional[List[str]] = None, precision: int = 4,
+                           pivot_row: Optional[int] = None, pivot_col: Optional[int] = None,
+                           entering_row: Optional[int] = None) -> str:
         """
         Formatea una tabla simplex como HTML con estilos inline.
         
@@ -301,6 +303,9 @@ class SimplexSolver:
             cj: lista de coeficientes CJ
             var_names: nombres de columnas variables
             precision: número de decimales
+            pivot_row: fila del pivote (para resaltar)
+            pivot_col: columna del pivote (para resaltar)
+            entering_row: fila que entra en la base (para resaltar diferente)
             
         Returns:
             String con HTML de la tabla formateada
@@ -398,11 +403,18 @@ class SimplexSolver:
         # Body rows
         html += '<tbody>'
         for i in range(n_rows):
-            html += '<tr class="data-row">'
+            row_class = 'data-row'
+            if entering_row is not None and i == entering_row:
+                row_class = 'data-row entering-row'
+            
+            html += f'<tr class="{row_class}">'
             html += f'<td class="vb-cell">{vb_list[i]}</td>'
             html += f'<td class="cb-cell">{fmt(cb_list[i])}</td>'
             for j in range(n_vars):
-                html += f'<td>{fmt(float(tableau[i, j]))}</td>'
+                cell_class = ''
+                if pivot_row is not None and pivot_col is not None and i == pivot_row and j == pivot_col:
+                    cell_class = ' class="pivot-cell"'
+                html += f'<td{cell_class}>{fmt(float(tableau[i, j]))}</td>'
             html += f'<td class="bj-cell">{fmt(float(tableau[i, -1]))}</td>'
             html += '</tr>'
         html += '</tbody>'
@@ -488,6 +500,7 @@ class BigMMethod(SimplexSolver):
                 'tableau': tableau.copy(),
                 'pivot_row': pivot_row,
                 'pivot_col': pivot_col,
+                'entering_row': pivot_row,  # La fila que entra es la fila del pivote
                 'description': f'Pivote en fila {pivot_row + 1}, columna {pivot_col + 1}'
             })
             
@@ -669,6 +682,7 @@ class TwoPhaseMethod(SimplexSolver):
                 'tableau': tableau.copy(),
                 'pivot_row': pivot_row,
                 'pivot_col': pivot_col,
+                'entering_row': pivot_row,
                 'description': f'Fase 1 - Pivote en fila {pivot_row + 1}, columna {pivot_col + 1}'
             })
             
@@ -740,6 +754,7 @@ class TwoPhaseMethod(SimplexSolver):
                 'tableau': tableau.copy(),
                 'pivot_row': pivot_row,
                 'pivot_col': pivot_col,
+                'entering_row': pivot_row,
                 'description': f'Fase 2 - Pivote en fila {pivot_row + 1}, columna {pivot_col + 1}'
             })
             

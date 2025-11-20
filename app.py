@@ -59,7 +59,8 @@ def solve():
                 'description': str(iter_data.get('description', '')),
                 'tableau': iter_data['tableau'].tolist() if 'tableau' in iter_data else None,
                 'pivot_row': int(iter_data.get('pivot_row')) if iter_data.get('pivot_row') is not None else None,
-                'pivot_col': int(iter_data.get('pivot_col')) if iter_data.get('pivot_col') is not None else None
+                'pivot_col': int(iter_data.get('pivot_col')) if iter_data.get('pivot_col') is not None else None,
+                'entering_row': int(iter_data.get('entering_row')) if iter_data.get('entering_row') is not None else None
             }
             # Añadir versión formateada de la tabla en HTML
             if 'tableau' in iter_data:
@@ -67,7 +68,17 @@ def solve():
                     tbl = iter_data['tableau']
                     if not hasattr(tbl, 'shape'):
                         tbl = np.array(tbl, dtype=float)
-                    formatted_iter['tableau_html'] = solver.format_tableau_html(tbl, cj=solver.c_original)
+                    # Pasar información del pivote
+                    pivot_row = iter_data.get('pivot_row')
+                    pivot_col = iter_data.get('pivot_col')
+                    entering_row = iter_data.get('entering_row')
+                    formatted_iter['tableau_html'] = solver.format_tableau_html(
+                        tbl, 
+                        cj=solver.c_original,
+                        pivot_row=pivot_row,
+                        pivot_col=pivot_col,
+                        entering_row=entering_row
+                    )
                 except Exception:
                     formatted_iter['tableau_html'] = None
 

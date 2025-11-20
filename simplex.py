@@ -487,10 +487,16 @@ class BigMMethod(SimplexSolver):
         first_pivot_col = self._find_pivot_column(tableau) if not self._is_optimal(tableau) else None
         first_pivot_row = self._find_pivot_row(tableau, first_pivot_col) if first_pivot_col is not None else None
         
+        # CJ para BigM: coeficientes originales + 0 para holgura + M para artificiales
+        n_slack = sum(1 for c in self.constraints if c in ['<=', '>='])
+        n_artificial = len(artificial_vars)
+        cj_bigm = list(self.c_original) + [0.0] * n_slack + [M] * n_artificial
+        
         # Guardar iteración inicial con información del primer pivote
         initial_iter = {
             'iteration': 0,
             'tableau': tableau.copy(),
+            'cj': cj_bigm,
             'description': 'Tabla inicial con Método de Gran M'
         }
         if first_pivot_col is not None and first_pivot_row is not None:
@@ -525,10 +531,16 @@ class BigMMethod(SimplexSolver):
                     'iterations': self.iterations
                 }
             
+            # CJ para BigM
+            n_slack = sum(1 for c in self.constraints if c in ['<=', '>='])
+            n_artificial = len(artificial_vars)
+            cj_bigm = list(self.c_original) + [0.0] * n_slack + [M] * n_artificial
+            
             # Guardar la tabla con la información del pivote ANTES de pivotar
             self.iterations.append({
                 'iteration': iteration,
                 'tableau': tableau.copy(),
+                'cj': cj_bigm,
                 'pivot_row': pivot_row,
                 'pivot_col': pivot_col,
                 'entering_row': pivot_row,  # La fila que entra es la fila del pivote
@@ -548,10 +560,16 @@ class BigMMethod(SimplexSolver):
                 'iterations': self.iterations
             }
         
+        # CJ para BigM
+        n_slack = sum(1 for c in self.constraints if c in ['<=', '>='])
+        n_artificial = len(artificial_vars)
+        cj_bigm = list(self.c_original) + [0.0] * n_slack + [M] * n_artificial
+        
         # Guardar tabla final óptima (sin pivote)
         self.iterations.append({
             'iteration': iteration,
             'tableau': tableau.copy(),
+            'cj': cj_bigm,
             'description': 'Solución óptima encontrada'
         })
         
@@ -692,11 +710,16 @@ class TwoPhaseMethod(SimplexSolver):
         first_pivot_col = self._find_pivot_column_phase1(tableau) if not self._is_optimal_phase1(tableau) else None
         first_pivot_row = self._find_pivot_row(tableau, first_pivot_col) if first_pivot_col is not None else None
         
+        # CJ para fase 1: 0 para variables originales y holgura, 1 para artificiales
+        total_vars = n_vars + n_slack + len(artificial_vars)
+        cj_phase1 = [0.0] * (n_vars + n_slack) + [1.0] * len(artificial_vars)
+        
         # Guardar iteración inicial con información del primer pivote
         initial_iter = {
             'iteration': 0,
             'phase': 1,
             'tableau': tableau.copy(),
+            'cj': cj_phase1,
             'description': 'Fase 1: Tabla inicial para encontrar solución básica factible'
         }
         if first_pivot_col is not None and first_pivot_row is not None:
@@ -724,11 +747,16 @@ class TwoPhaseMethod(SimplexSolver):
                     'iterations': self.iterations
                 }
             
+            # CJ para fase 1
+            total_vars = n_vars + n_slack + len(artificial_vars)
+            cj_phase1 = [0.0] * (n_vars + n_slack) + [1.0] * len(artificial_vars)
+            
             # Guardar la tabla con la información del pivote ANTES de pivotar
             self.iterations.append({
                 'iteration': iteration,
                 'phase': 1,
                 'tableau': tableau.copy(),
+                'cj': cj_phase1,
                 'pivot_row': pivot_row,
                 'pivot_col': pivot_col,
                 'entering_row': pivot_row,
@@ -748,10 +776,15 @@ class TwoPhaseMethod(SimplexSolver):
                 'iterations': self.iterations
             }
         
+        # CJ para fase 1
+        total_vars = n_vars + n_slack + len(artificial_vars)
+        cj_phase1 = [0.0] * (n_vars + n_slack) + [1.0] * len(artificial_vars)
+        
         self.iterations.append({
             'iteration': iteration,
             'phase': 1,
             'tableau': tableau.copy(),
+            'cj': cj_phase1,
             'description': 'Fase 1 completada: Se encontró solución básica factible'
         })
         
@@ -775,11 +808,16 @@ class TwoPhaseMethod(SimplexSolver):
         first_pivot_col = self._find_pivot_column(tableau) if not self._is_optimal(tableau) else None
         first_pivot_row = self._find_pivot_row(tableau, first_pivot_col) if first_pivot_col is not None else None
         
+        # CJ para fase 2: coeficientes del problema original (ya sin artificiales)
+        n_slack = phase1_result['n_slack']
+        cj_phase2 = list(self.c_original) + [0.0] * n_slack
+        
         # Guardar iteración inicial con información del primer pivote
         initial_iter = {
             'iteration': 0,
             'phase': 2,
             'tableau': tableau.copy(),
+            'cj': cj_phase2,
             'description': 'Fase 2: Tabla inicial para optimizar función objetivo'
         }
         if first_pivot_col is not None and first_pivot_row is not None:
@@ -807,11 +845,16 @@ class TwoPhaseMethod(SimplexSolver):
                     'iterations': self.iterations
                 }
             
+            # CJ para fase 2
+            n_slack = phase1_result['n_slack']
+            cj_phase2 = list(self.c_original) + [0.0] * n_slack
+            
             # Guardar la tabla con la información del pivote ANTES de pivotar
             self.iterations.append({
                 'iteration': iteration,
                 'phase': 2,
                 'tableau': tableau.copy(),
+                'cj': cj_phase2,
                 'pivot_row': pivot_row,
                 'pivot_col': pivot_col,
                 'entering_row': pivot_row,
@@ -830,11 +873,16 @@ class TwoPhaseMethod(SimplexSolver):
                 'iterations': self.iterations
             }
         
+        # CJ para fase 2
+        n_slack = phase1_result['n_slack']
+        cj_phase2 = list(self.c_original) + [0.0] * n_slack
+        
         # Guardar tabla final óptima (sin pivote)
         self.iterations.append({
             'iteration': iteration,
             'phase': 2,
             'tableau': tableau.copy(),
+            'cj': cj_phase2,
             'description': 'Solución óptima encontrada'
         })
         

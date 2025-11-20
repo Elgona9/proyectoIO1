@@ -68,13 +68,15 @@ def solve():
                     tbl = iter_data['tableau']
                     if not hasattr(tbl, 'shape'):
                         tbl = np.array(tbl, dtype=float)
-                    # Pasar información del pivote
+                    # Pasar información del pivote y CJ
                     pivot_row = iter_data.get('pivot_row')
                     pivot_col = iter_data.get('pivot_col')
                     entering_row = iter_data.get('entering_row')
+                    # Usar CJ de la iteración si existe, sino usar c_original
+                    cj = iter_data.get('cj', solver.c_original)
                     formatted_iter['tableau_html'] = solver.format_tableau_html(
                         tbl, 
-                        cj=solver.c_original,
+                        cj=cj,
                         pivot_row=pivot_row,
                         pivot_col=pivot_col,
                         entering_row=entering_row

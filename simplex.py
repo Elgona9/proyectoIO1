@@ -107,7 +107,328 @@ class SimplexSolver:
             optimal_value = -tableau[-1, -1]
         
         return solution, optimal_value
+    
+    def _extract_all_variables(self, tableau: np.ndarray) -> Dict:
+        """
+        Extrae los valores de todas las variables (decisión, holgura y artificiales)
+        
+        Returns:
+            Dict con variables de decisión, holgura y artificiales
+        """
+        n_vars = tableau.shape[1] - 1  # Total de columnas menos RHS
+        all_values = np.zeros(n_vars)
+        
+        for j in range(n_vars):
+            col = tableau[:-1, j]
+            # Verificar si es una columna básica
+            if np.count_nonzero(np.abs(col - 1) < 1e-10) == 1 and np.count_nonzero(np.abs(col) < 1e-10) == len(col) - 1:
+                idx = np.argmax(np.abs(col - 1) < 1e-10)
+                all_values[j] = tableau[idx, -1]
+        
+        return all_values
 
+    def format_tableau(self, tableau: np.ndarray, cj: Optional[List[float]] = None,
+                       var_names: Optional[List[str]] = None, precision: int = 4) -> str:
+        """
+        Formatea una tabla simplex para impresión humana con las filas:
+        - Cabecera CJ (valores de las variables)
+        - Columnas: VB (variable básica), CB (coeficiente de la variable básica), luego las variables y BJ (RHS)
+        - Filas para cada variable básica
+        - Filas ZJ y CJ-ZJ
+
+        Args:
+            tableau: matriz numpy de la tabla (última columna RHS, última fila función objetivo)
+            cj: lista de coeficientes CJ (longitud = num_cols - 1). Si None, se inferirán de la fila objetivo.
+            var_names: nombres de columnas variables (longitud = num_cols - 1). Si None, se generan X1.., S1.., ...
+            precision: número de decimales para representar valores.
+
+        Returns:
+            Una cadena con la tabla formateada.
+        """
+        rows, cols = tableau.shape
+        n_rows = rows - 1
+        n_vars = cols - 1
+
+        # Inferir CJ si no se proporciona
+        if cj is None:
+            cj_arr = list(tableau[-1, :n_vars].astype(float))
+        else:
+            cj_arr = [float(x) for x in cj]
+            # if length mismatch, try to pad/truncate
+            if len(cj_arr) < n_vars:
+                cj_arr = cj_arr + [0.0] * (n_vars - len(cj_arr))
+            elif len(cj_arr) > n_vars:
+                cj_arr = cj_arr[:n_vars]
+
+        # Generate variable names if needed
+        if var_names is None:
+            orig = len(self.c_original)
+            names = []
+            for i in range(n_vars):
+                if i < orig:
+                    names.append(f"x{i+1}")
+                else:
+                    names.append(f"s{i - orig + 1}")
+        else:
+            names = var_names[:n_vars]
+            if len(names) < n_vars:
+                names = names + [f"v{i+1}" for i in range(len(names), n_vars)]
+
+        # Detect basic columns: map row -> column index if column is unit vector
+        basic_col_for_row = {i: None for i in range(n_rows)}
+        for j in range(n_vars):
+            col = tableau[:-1, j]
+            # check if column is unit vector
+            is_one = np.isclose(col, 1.0, atol=1e-8)
+            is_zero = np.isclose(col, 0.0, atol=1e-8)
+            if np.count_nonzero(is_one) == 1 and np.count_nonzero(~is_zero) == 1:
+                row_idx = int(np.where(is_one)[0][0])
+                basic_col_for_row[row_idx] = j
+
+        # Compute CB per row
+        cb_list = []
+        vb_list = []
+        for i in range(n_rows):
+            col_idx = basic_col_for_row.get(i)
+            if col_idx is None:
+                cb_list.append(0.0)
+                vb_list.append("-")
+            else:
+                cb_list.append(cj_arr[col_idx])
+                vb_list.append(names[col_idx])
+
+        # Compute Zj
+        zj = [0.0] * n_vars
+        for j in range(n_vars):
+            s = 0.0
+            for i in range(n_rows):
+                s += cb_list[i] * float(tableau[i, j])
+            zj[j] = s
+
+        # CJ - ZJ
+        cj_minus_zj = [cj_arr[j] - zj[j] for j in range(n_vars)]
+
+        # Prepare column widths
+        col_texts = ["VB", "CB"] + names + ["BJ"]
+        # compute string values matrix for rows
+        def fmt(x):
+            if abs(x) < 10**(-precision):
+                x = 0.0
+            # Formatear sin ceros innecesarios
+            formatted = f"{x:.{precision}f}"
+            # Remover ceros trailing y punto decimal si es entero
+            if '.' in formatted:
+                formatted = formatted.rstrip('0').rstrip('.')
+            return formatted if formatted else '0'
+
+        table_rows = []
+        for i in range(n_rows):
+            row = []
+            row.append(vb_list[i])
+            row.append(fmt(cb_list[i]))
+            for j in range(n_vars):
+                row.append(fmt(float(tableau[i, j])))
+            row.append(fmt(float(tableau[i, -1])))
+            table_rows.append(row)
+
+        # ZJ and CJ-ZJ rows
+        zj_row = ["ZJ", ""] + [fmt(v) for v in zj] + [fmt( sum(cb_list[i] * float(tableau[i, -1]) for i in range(n_rows)) )]
+        cjzj_row = ["CJ-ZJ", ""] + [fmt(v) for v in cj_minus_zj] + [fmt(0.0)]
+
+        # Header CJ line
+        header_cj = ["CJ", ""] + [fmt(v) for v in cj_arr] + [""]
+
+        # Column widths
+        cols_count = 2 + n_vars + 1
+        widths = [max(len(col_texts[k]),  max((len(r[k]) for r in table_rows), default=0), len(str(header_cj[k])) if k < len(header_cj) else 0)
+                  for k in range(cols_count)]
+
+        # ensure CB width at least 4
+        widths[1] = max(widths[1], 4)
+
+        # Build formatted lines
+        lines = []
+        # CJ header
+        line = f"{header_cj[0]:>{widths[0]}} {header_cj[1]:>{widths[1]}}"
+        for j in range(n_vars):
+            line += " " + f"{header_cj[2 + j]:>{widths[2 + j]}}"
+        line += " " + f"{header_cj[-1]:>{widths[-1]}}"
+        lines.append(line)
+
+        # Second header with VB CB and variable names
+        line = f"{col_texts[0]:>{widths[0]}} {col_texts[1]:>{widths[1]}}"
+        for j in range(n_vars):
+            line += " " + f"{col_texts[2 + j]:>{widths[2 + j]}}"
+        line += " " + f"{col_texts[-1]:>{widths[-1]}}"
+        lines.append(line)
+
+        # Divider
+        lines.append("-" * (sum(widths) + (cols_count - 1)))
+
+        # Body rows
+        for r in table_rows:
+            line = f"{r[0]:>{widths[0]}} {r[1]:>{widths[1]}}"
+            for j in range(n_vars):
+                line += " " + f"{r[2 + j]:>{widths[2 + j]}}"
+            line += " " + f"{r[-1]:>{widths[-1]}}"
+            lines.append(line)
+
+        # Divider
+        lines.append("-" * (sum(widths) + (cols_count - 1)))
+
+        # ZJ and CJ-ZJ
+        line = f"{zj_row[0]:>{widths[0]}} {zj_row[1]:>{widths[1]}}"
+        for j in range(n_vars):
+            line += " " + f"{zj_row[2 + j]:>{widths[2 + j]}}"
+        line += " " + f"{zj_row[-1]:>{widths[-1]}}"
+        lines.append(line)
+
+        line = f"{cjzj_row[0]:>{widths[0]}} {cjzj_row[1]:>{widths[1]}}"
+        for j in range(n_vars):
+            line += " " + f"{cjzj_row[2 + j]:>{widths[2 + j]}}"
+        line += " " + f"{cjzj_row[-1]:>{widths[-1]}}"
+        lines.append(line)
+
+        return "\n".join(lines)
+    
+    def format_tableau_html(self, tableau: np.ndarray, cj: Optional[List[float]] = None,
+                           var_names: Optional[List[str]] = None, precision: int = 4) -> str:
+        """
+        Formatea una tabla simplex como HTML con estilos inline.
+        
+        Args:
+            tableau: matriz numpy de la tabla
+            cj: lista de coeficientes CJ
+            var_names: nombres de columnas variables
+            precision: número de decimales
+            
+        Returns:
+            String con HTML de la tabla formateada
+        """
+        rows, cols = tableau.shape
+        n_rows = rows - 1
+        n_vars = cols - 1
+
+        # Inferir CJ si no se proporciona
+        if cj is None:
+            cj_arr = list(tableau[-1, :n_vars].astype(float))
+        else:
+            cj_arr = [float(x) for x in cj]
+            if len(cj_arr) < n_vars:
+                cj_arr = cj_arr + [0.0] * (n_vars - len(cj_arr))
+            elif len(cj_arr) > n_vars:
+                cj_arr = cj_arr[:n_vars]
+
+        # Generate variable names if needed
+        if var_names is None:
+            orig = len(self.c_original)
+            names = []
+            for i in range(n_vars):
+                if i < orig:
+                    names.append(f"X<sub>{i+1}</sub>")
+                else:
+                    names.append(f"S<sub>{i - orig + 1}</sub>")
+        else:
+            names = var_names[:n_vars]
+
+        # Detect basic columns
+        basic_col_for_row = {i: None for i in range(n_rows)}
+        for j in range(n_vars):
+            col = tableau[:-1, j]
+            is_one = np.isclose(col, 1.0, atol=1e-8)
+            is_zero = np.isclose(col, 0.0, atol=1e-8)
+            if np.count_nonzero(is_one) == 1 and np.count_nonzero(~is_zero) == 1:
+                row_idx = int(np.where(is_one)[0][0])
+                basic_col_for_row[row_idx] = j
+
+        # Compute CB per row
+        cb_list = []
+        vb_list = []
+        for i in range(n_rows):
+            col_idx = basic_col_for_row.get(i)
+            if col_idx is None:
+                cb_list.append(0.0)
+                vb_list.append("-")
+            else:
+                cb_list.append(cj_arr[col_idx])
+                vb_list.append(names[col_idx])
+
+        # Compute Zj
+        zj = [0.0] * n_vars
+        for j in range(n_vars):
+            s = 0.0
+            for i in range(n_rows):
+                s += cb_list[i] * float(tableau[i, j])
+            zj[j] = s
+
+        # CJ - ZJ
+        cj_minus_zj = [cj_arr[j] - zj[j] for j in range(n_vars)]
+
+        def fmt(x):
+            if abs(x) < 10**(-precision):
+                x = 0.0
+            # Formatear sin ceros innecesarios
+            formatted = f"{x:.{precision}f}"
+            # Remover ceros trailing y punto decimal si es entero
+            if '.' in formatted:
+                formatted = formatted.rstrip('0').rstrip('.')
+            return formatted if formatted else '0'
+
+        # Build HTML
+        html = '<table class="simplex-table">'
+        
+        # CJ header row
+        html += '<thead><tr class="cj-row">'
+        html += '<th class="label-cell">C<sub>J</sub></th>'
+        html += '<th></th>'
+        for v in cj_arr:
+            html += f'<th>{fmt(v)}</th>'
+        html += '<th></th>'
+        html += '</tr>'
+        
+        # Column headers
+        html += '<tr class="header-row">'
+        html += '<th class="label-cell">V<sub>B</sub></th>'
+        html += '<th class="label-cell">C<sub>B</sub></th>'
+        for name in names:
+            html += f'<th>{name}</th>'
+        html += '<th class="label-cell">B<sub>J</sub></th>'
+        html += '</tr></thead>'
+        
+        # Body rows
+        html += '<tbody>'
+        for i in range(n_rows):
+            html += '<tr class="data-row">'
+            html += f'<td class="vb-cell">{vb_list[i]}</td>'
+            html += f'<td class="cb-cell">{fmt(cb_list[i])}</td>'
+            for j in range(n_vars):
+                html += f'<td>{fmt(float(tableau[i, j]))}</td>'
+            html += f'<td class="bj-cell">{fmt(float(tableau[i, -1]))}</td>'
+            html += '</tr>'
+        html += '</tbody>'
+        
+        # Footer with ZJ and CJ-ZJ
+        html += '<tfoot>'
+        html += '<tr class="zj-row">'
+        html += '<td class="label-cell">Z<sub>J</sub></td>'
+        html += '<td></td>'
+        for v in zj:
+            html += f'<td>{fmt(v)}</td>'
+        zj_rhs = sum(cb_list[i] * float(tableau[i, -1]) for i in range(n_rows))
+        html += f'<td class="bj-cell">{fmt(zj_rhs)}</td>'
+        html += '</tr>'
+        
+        html += '<tr class="cj-zj-row">'
+        html += '<td class="label-cell">C<sub>J</sub>-Z<sub>J</sub></td>'
+        html += '<td></td>'
+        for v in cj_minus_zj:
+            html += f'<td>{fmt(v)}</td>'
+        html += f'<td class="bj-cell">{fmt(0.0)}</td>'
+        html += '</tr>'
+        html += '</tfoot>'
+        
+        html += '</table>'
+        return html
 
 class BigMMethod(SimplexSolver):
     """Método de la Gran M (Big M Method)"""
@@ -196,12 +517,22 @@ class BigMMethod(SimplexSolver):
         
         # Extraer solución
         self.solution, self.optimal_value = self._extract_solution(tableau, n_vars)
+        all_vars = self._extract_all_variables(tableau)
         self.status = 'optimal'
+        
+        # Separar variables por tipo
+        n_slack = sum(1 for c in self.constraints if c in ['<=', '>='])
+        n_artificial = sum(1 for c in self.constraints if c in ['>=', '='])
+        
+        slack_vars = all_vars[n_vars:n_vars + n_slack].tolist() if n_slack > 0 else []
+        artificial_vars = all_vars[n_vars + n_slack:].tolist() if n_artificial > 0 else []
         
         return {
             'status': 'optimal',
             'solution': self.solution.tolist(),
             'optimal_value': float(self.optimal_value),
+            'slack_variables': slack_vars,
+            'artificial_variables': artificial_vars,
             'iterations': self.iterations,
             'method': 'Big M Method'
         }
@@ -423,12 +754,19 @@ class TwoPhaseMethod(SimplexSolver):
         
         # Extraer solución
         self.solution, self.optimal_value = self._extract_solution(tableau, n_vars)
+        all_vars = self._extract_all_variables(tableau)
         self.status = 'optimal'
+        
+        # Separar variables por tipo (en fase 2 ya no hay artificiales)
+        n_slack = sum(1 for c in self.constraints if c in ['<=', '>='])
+        slack_vars = all_vars[n_vars:n_vars + n_slack].tolist() if n_slack > 0 else []
         
         return {
             'status': 'optimal',
             'solution': self.solution.tolist(),
             'optimal_value': float(self.optimal_value),
+            'slack_variables': slack_vars,
+            'artificial_variables': [],  # Ya fueron eliminadas en fase 2
             'iterations': self.iterations,
             'method': 'Two Phase Method'
         }

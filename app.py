@@ -61,6 +61,16 @@ def solve():
                 'pivot_row': int(iter_data.get('pivot_row')) if iter_data.get('pivot_row') is not None else None,
                 'pivot_col': int(iter_data.get('pivot_col')) if iter_data.get('pivot_col') is not None else None
             }
+            # Añadir versión formateada de la tabla en HTML
+            if 'tableau' in iter_data:
+                try:
+                    tbl = iter_data['tableau']
+                    if not hasattr(tbl, 'shape'):
+                        tbl = np.array(tbl, dtype=float)
+                    formatted_iter['tableau_html'] = solver.format_tableau_html(tbl, cj=solver.c_original)
+                except Exception:
+                    formatted_iter['tableau_html'] = None
+
             formatted_iterations.append(formatted_iter)
         
         result['iterations'] = formatted_iterations

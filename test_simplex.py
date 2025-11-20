@@ -31,6 +31,13 @@ def test_example_1():
         print(f"Valor óptimo: {result_bigm['optimal_value']:.4f}")
         print(f"Solución: x₁ = {result_bigm['solution'][0]:.4f}, x₂ = {result_bigm['solution'][1]:.4f}")
         print(f"Iteraciones: {len(result_bigm['iterations'])}")
+        # Imprimir tablas formateadas de cada iteración
+        for it in solver_bigm.iterations:
+            print(f"\nIteración {it.get('iteration', '?')}: {it.get('description', '')}")
+            try:
+                print(solver_bigm.format_tableau(it['tableau'], cj=solver_bigm.c_original))
+            except Exception as e:
+                print(f"Error al formatear la tabla: {e}")
     
     # Método Dos Fases
     print("\n--- Método de las Dos Fases ---")
@@ -41,6 +48,13 @@ def test_example_1():
         print(f"Valor óptimo: {result_twophase['optimal_value']:.4f}")
         print(f"Solución: x₁ = {result_twophase['solution'][0]:.4f}, x₂ = {result_twophase['solution'][1]:.4f}")
         print(f"Iteraciones: {len(result_twophase['iterations'])}")
+        for it in solver_twophase.iterations:
+            print(f"\nIteración {it.get('iteration', '?')} (fase {it.get('phase','?')}): {it.get('description', '')}")
+            try:
+                # para TwoPhase, pasar c_original para mostrar CJ
+                print(solver_twophase.format_tableau(it['tableau'], cj=solver_twophase.c_original))
+            except Exception as e:
+                print(f"Error al formatear la tabla: {e}")
     
     return result_bigm['status'] == 'optimal' and result_twophase['status'] == 'optimal'
 

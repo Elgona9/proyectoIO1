@@ -189,17 +189,29 @@
         }
 
         .iteration {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+
+        .iteration:hover {
             background: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
+            border-color: #667eea;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.1);
         }
 
         .iteration-header {
             font-weight: bold;
+            font-size: 1.1em;
             color: #667eea;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 6px;
+            border-left: 3px solid #667eea;
         }
 
         .tableau {
@@ -227,6 +239,102 @@
         .pivot-cell {
             background: #ffeb3b !important;
             font-weight: bold;
+        }
+
+        .simplex-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin: 15px 0;
+            font-size: 0.95em;
+        }
+
+        .simplex-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .simplex-table th, .simplex-table td {
+            padding: 12px 15px;
+            text-align: center;
+            border: 1px solid #e0e0e0;
+        }
+
+        .simplex-table th {
+            font-weight: 600;
+            font-size: 0.9em;
+            letter-spacing: 0.5px;
+        }
+
+        .simplex-table .cj-row th {
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+            font-size: 0.85em;
+        }
+
+        .simplex-table .label-cell {
+            background: #9333ea;
+            font-weight: bold;
+            color: white;
+        }
+
+        .simplex-table .vb-cell {
+            background: #7c3aed;
+            font-weight: 600;
+            color: white;
+        }
+
+        .simplex-table .cb-cell {
+            background: #a855f7;
+            font-weight: 600;
+            color: white;
+        }
+
+        .simplex-table .bj-cell {
+            background: #f97316;
+            font-weight: 600;
+            color: white;
+        }
+
+        .simplex-table tbody tr:hover {
+            background: #f0f4ff;
+        }
+
+        .simplex-table tfoot {
+            border-top: 3px solid #667eea;
+        }
+
+        .simplex-table .zj-row {
+            background: #e3f2fd;
+            font-weight: 600;
+        }
+
+        .simplex-table .zj-row td {
+            color: #1976d2;
+        }
+
+        .simplex-table .cj-zj-row {
+            background: #fff3e0;
+            font-weight: bold;
+        }
+
+        .simplex-table .cj-zj-row td {
+            color: #f57c00;
+        }
+
+        .tableau-container {
+            overflow-x: auto;
+            margin: 15px 0;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+        }
+
+        .tableau-container:hover {
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.15);
+            transform: translateY(-2px);
         }
 
         .alert {
@@ -626,13 +734,39 @@
                 
                 html += '<div class="result-box">';
                 html += '<h3>Solución Óptima</h3>';
-                html += '<p><strong>Valor óptimo de la función objetivo:</strong> ' + result.optimal_value.toFixed(4) + '</p>';
+                // Función para formatear números sin ceros innecesarios
+                const formatNum = (num) => {
+                    return num % 1 === 0 ? num.toString() : num.toFixed(4).replace(/\.?0+$/, '');
+                };
+                html += '<p><strong>Valor óptimo de la función objetivo:</strong> ' + formatNum(result.optimal_value) + '</p>';
+                
                 html += '<p><strong>Variables de decisión:</strong></p>';
                 html += '<ul>';
                 result.solution.forEach((val, i) => {
-                    html += `<li>x<sub>${i + 1}</sub> = ${val.toFixed(4)}</li>`;
+                    html += `<li>x<sub>${i + 1}</sub> = ${formatNum(val)}</li>`;
                 });
                 html += '</ul>';
+                
+                // Mostrar variables de holgura si existen
+                if (result.slack_variables && result.slack_variables.length > 0) {
+                    html += '<p><strong>Variables de holgura:</strong></p>';
+                    html += '<ul>';
+                    result.slack_variables.forEach((val, i) => {
+                        html += `<li>S<sub>${i + 1}</sub> = ${formatNum(val)}</li>`;
+                    });
+                    html += '</ul>';
+                }
+                
+                // Mostrar variables artificiales si existen
+                if (result.artificial_variables && result.artificial_variables.length > 0) {
+                    html += '<p><strong>Variables artificiales:</strong></p>';
+                    html += '<ul>';
+                    result.artificial_variables.forEach((val, i) => {
+                        html += `<li>A<sub>${i + 1}</sub> = ${formatNum(val)}</li>`;
+                    });
+                    html += '</ul>';
+                }
+                
                 html += '</div>';
                 
             } else if (result.status === 'infeasible') {
@@ -658,7 +792,13 @@
                     html += `<div class="iteration-header">Iteración ${iter.iteration}${phaseText}</div>`;
                     html += `<p>${iter.description}</p>`;
                     
-                    if (iter.tableau) {
+                    if (iter.tableau_html) {
+                        // Mostrar la tabla HTML formateada
+                        html += '<div class="tableau-container">';
+                        html += iter.tableau_html;
+                        html += '</div>';
+                    } else if (iter.tableau) {
+                        // Fallback: mostrar la tabla numérica como antes
                         html += '<div class="tableau">';
                         html += '<table>';
                         html += '<thead><tr><th>Base</th>';
